@@ -19,6 +19,7 @@ import pvporcupine
 from pvrecorder import PvRecorder
 import json
 
+# Global variables
 weather_api_key = "343dfb812d196e284042489b46589867"
 news_api_key = "c0dc9c67068045bb945b43009912d3ca"
 ACCESS_KEY = "+TozAJkNJYIzoB5O7Xgz5K2NuYpJhEu62tN5xhsi4kx3E+sDf5kKeQ=="
@@ -26,77 +27,22 @@ KEYWORD_PATH = "Worcestershire_en_mac_v3_0_0.ppn"
 GROQ_API_KEY = "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"
 url = "https://api.groq.com/openai/v1/chat/completions"
 stop_listener = False
-translator = GoogleTranslator(source='auto', target='en')  #
+translator = GoogleTranslator(source='auto', target='en')
+is_taking_notes = False
+current_note_content = ""
+current_file_path = ""
+NOTES_DIRECTORY = "/Users/anantupadhiyay/Documents/notes"
+
 HINGLISH_MAPPING = {
-    # Weather-related queries
-    "वेदर क्या हो रहा है": "what is the weather",
-    "मौसम कैसा है": "what is the weather",
-    "तापमान बताओ": "what is the temperature",
-    "आज का मौसम कैसा है": "what is the weather today",
-    "बारिश हो रही है क्या": "is it raining",
-    "हवा कैसी चल रही है": "how is the wind",
-    "आज गर्मी कितनी है": "how hot is it today",
-    "ठंड कितनी है": "how cold is it",
-    "आज का तापमान क्या है": "what is today's temperature",
-    "मौसम का हाल बताओ": "tell me the weather update",
-
-    # Time-related queries
-    "समय क्या है": "what is the time",
-    "क्या टाइम हुआ है": "what is the time",
-    "अभी टाइम क्या हो रहा है": "what is the time now",
-    "वक़्त क्या हुआ है": "what is the time",
-    "कितने बजे हैं": "what is the time",
-    "टाइम बताओ": "tell me the time",
-    "अभी कितना समय हुआ है": "what is the time now",
-    "समय का पता करो": "check the time",
-    "क्या समय हुआ है": "what is the time",
-    "वक़्त बताओ": "tell me the time",
-
-    # News-related queries
-    "समाचार सुनाओ": "tell me the news",
-    "आज की खबर": "today's news",
-    "ताजा खबर क्या है": "what is the latest news",
-    "दुनिया की खबर बताओ": "tell me world news",
-    "आज के हेडलाइन्स क्या हैं": "what are today's headlines",
-    "न्यूज़ अपडेट दो": "give me news update",
-    "ताजा समाचार बताओ": "tell me the latest news",
-    "आज क्या चल रहा है": "what is happening today",
-    "खबरें सुनाओ": "tell me the news",
-    "देश की खबर बताओ": "tell me national news",
-
-    # YouTube-related queries
-    "यूट्यूब पर वीडियो चलाओ": "play video on youtube",
-    "वीडियो चलाओ": "play video",
-    "यूट्यूब वीडियो": "play video on youtube",
-    "मुझे यूट्यूब की वीडियो प्ले करके दे दो": "play video on youtube",
-    "यूट्यूब वीडियो चलाओ": "play video on youtube",
-    "यूट्यूब पर वीडियो प्ले कर दो": "play video on youtube",
-    "वीडियो को पॉज करो": "pause video",
-    "वीडियो रोको": "pause video",
-    "वीडियो फिर से चलाओ": "resume video",
-    "वीडियो जारी रखो": "resume video",
-    "यूट्यूब पर गाना चलाओ": "play song on youtube",
-    "गाना सुनाओ": "play song",
-    "म्यूजिक चलाओ": "play music",
-    "यूट्यूब पर मूवी चलाओ": "play movie on youtube",
-    "मूवी चलाओ": "play movie",
-    "वीडियो बंद करो": "stop video",
-    "यूट्यूब बंद करो": "stop youtube",
-    "वीडियो आगे बढ़ाओ": "skip video",
-    "वीडियो पीछे करो": "rewind video",
-    "यूट्यूब पर सर्च करो": "search on youtube",
-
-    # General commands
-    "बंद करो": "stop",
-    "समाप्त करो": "stop",
-    "अलविदा": "goodbye",
-    "रुको": "wait",
-    "शुरू करो": "start",
-    "मदद करो": "help",
-    "क्या कर रहे हो": "what are you doing",
-    "तुम कौन हो": "who are you",
-    "तुम्हारा नाम क्या है": "what is your name",
-    "तुम क्या कर सकते हो": "what can you do",
+    "kitna baje hai": "what time is it",
+    "aaj ka mausam kaisa hai": "what's today's weather",
+    "kya khabar hai": "what's the news",
+    "video chalao": "play video",
+    "video band karo": "stop video",
+    "video fir se chalao": "resume video",
+    "letter likho": "write letter",
+    "notes likho": "take notes",
+    "band karo": "stop",
 }
 
 
@@ -106,7 +52,6 @@ def translate_hinglish(query):
     return translator.translate(query)
 
 
-# Audio Functions
 def mute_audio():
     if os.name == "nt":
         os.system("nircmd.exe mutesysvolume 1")
@@ -148,7 +93,6 @@ def takeCommand():
             audio_data = np.frombuffer(audio.frame_data, dtype=np.int16)
             reduced_noise_audio = nr.reduce_noise(y=audio_data, sr=16000)
 
-
             query = recognizer.recognize_google(audio, language='hi-IN')
             print(f"User said: {query}")
 
@@ -156,7 +100,6 @@ def takeCommand():
                 print("Query contains English words. Skipping translation.")
                 translated_query = query
             else:
-
                 translated_query = translate_hinglish(query)
                 print(f"Translated query (English): {translated_query}")
 
@@ -199,7 +142,7 @@ def groq(text, GROQ_API_KEY):
     print("Sending query")
     try:
         response = requests.post(url, headers=headers, json=data)
-        response.raise_for_status()  # Raise an error for bad responses (4xx, 5xx)
+        response.raise_for_status()
         response_json = response.json()
         print("Answer received")
 
@@ -267,10 +210,8 @@ def play_youtube_video(video_name):
             return "Assistant: No video name provided."
 
         say(f"Playing {video_name} on YouTube.")
-
-        # Use pywhatkit to directly play the video
         kit.playonyt(video_name)
-        time.sleep(5)  # Wait for YouTube to load
+        time.sleep(5)
         return f"Assistant: Playing {video_name} on YouTube."
     except Exception as e:
         say(f"Error playing video: {str(e)}")
@@ -304,21 +245,201 @@ def stop_assistant():
     return "Assistant: Stopping. Goodbye!"
 
 
-# Command Processor
+def start_text_editor():
+    global is_taking_notes, current_note_content, current_file_path
+    try:
+        os.makedirs(NOTES_DIRECTORY, exist_ok=True)
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"note_{timestamp}.txt"
+        current_file_path = os.path.join(NOTES_DIRECTORY, filename)
+
+        with open(current_file_path, 'w') as f:
+            f.write("")
+
+        subprocess.Popen(['open', '-a', 'TextEdit', current_file_path])
+        time.sleep(2)
+
+        is_taking_notes = True
+        current_note_content = ""
+        say(f"I've opened a new document at {current_file_path}. Start dictating now. Say 'save file' when done.")
+        return f"Assistant: New document opened at {current_file_path}. Speak and I'll type."
+    except Exception as e:
+        return f"Assistant: Error opening text editor: {str(e)}"
+
+
+def add_to_note(text):
+    global current_note_content
+    try:
+        text = text.replace("full stop", ".").replace("comma", ",")
+        text = text.replace("new line", "\n").replace("next line", "\n")
+        text = text.replace("question mark", "?").replace("exclamation mark", "!")
+
+        current_note_content += text + " "
+        pyautogui.write(text + " ", interval=0.05)
+        return True
+    except Exception as e:
+        print(f"Error adding to note: {e}")
+        return False
+
+
+def save_text_file():
+    global is_taking_notes, current_note_content, current_file_path
+    try:
+        if not current_note_content.strip():
+            say("The document is empty. Save anyway?")
+            response = takeCommand()
+            if response and "no" in response.lower():
+                is_taking_notes = False
+                current_note_content = ""
+                try:
+                    os.remove(current_file_path)
+                except:
+                    pass
+                say("Document discarded.")
+                return "Assistant: Empty document discarded."
+
+        pyautogui.hotkey('command', 's')
+        time.sleep(1)
+
+        try:
+            save_btn = pyautogui.locateCenterOnScreen('save_button.png', confidence=0.7)
+            if save_btn:
+                pyautogui.click(save_btn)
+            else:
+                save_anyway_btn = pyautogui.locateCenterOnScreen('save_anyway_button.png', confidence=0.7)
+                if save_anyway_btn:
+                    pyautogui.click(save_anyway_btn)
+        except:
+            with open(current_file_path, 'w') as f:
+                f.write(current_note_content)
+
+        is_taking_notes = False
+        current_note_content = ""
+        say(f"Document saved successfully at {current_file_path}")
+        return f"Assistant: Document saved at {current_file_path}"
+    except Exception as e:
+        is_taking_notes = False
+        return f"Assistant: Error saving document: {str(e)}"
+
+
+def write_letter():
+    # Step 1: Ask for letter type
+    say("Which type of letter would you like to write? For example: leave application, job application, resignation letter, complaint letter, or business proposal.")
+    letter_type = takeCommand()
+
+    if not letter_type:
+        say("Sorry, I didn't understand the letter type. Please try again.")
+        return "Assistant: Could not determine letter type."
+
+    # Step 2: Confirm the letter type
+    say(f"You want to write a {letter_type}. Is that correct? Please say yes or no.")
+    confirmation = takeCommand()
+
+    if confirmation and "no" in confirmation.lower():
+        say("Let's try again. Which type of letter would you like to write?")
+        letter_type = takeCommand()
+        if not letter_type:
+            say("Sorry, I still didn't understand. Let's try this again later.")
+            return "Assistant: Could not determine letter type."
+
+    # Step 3: Generate the letter
+    say(f"Generating a professional {letter_type} for you. Please wait while I prepare this...")
+
+    prompt = f"""Generate a comprehensive professional {letter_type} with all necessary sections. 
+    Include these parts:
+    1. Sender's address (with placeholder)
+    2. Date
+    3. Recipient's address (with placeholder)
+    4. Subject line
+    5. Salutation
+    6. Body (3-5 paragraphs)
+    7. Closing
+    8. Signature line
+
+    Make it formal and business-appropriate. Use placeholders like [Your Name] where personal details should go."""
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {GROQ_API_KEY}"
+    }
+
+    data = {
+        "model": "llama3-70b-8192",
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.3,
+        "max_tokens": 2000
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        response.raise_for_status()
+        letter_content = response.json()["choices"][0]["message"]["content"]
+    except Exception as e:
+        say("Sorry, I encountered an error while generating the letter. Please try again later.")
+        return f"Assistant: Error generating letter: {e}"
+
+    # Step 4: Save the letter
+    os.makedirs(NOTES_DIRECTORY, exist_ok=True)
+
+    # Clean the letter type for filename
+    clean_letter_type = ''.join(c for c in letter_type if c.isalnum() or c in (' ', '_')).rstrip()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{clean_letter_type.replace(' ', '_')}_{timestamp}.txt"
+    filepath = os.path.join(NOTES_DIRECTORY, filename)
+
+    try:
+        with open(filepath, 'w') as f:
+            f.write(letter_content)
+
+        # Open the file in default text editor
+        if os.name == 'nt':  # Windows
+            os.startfile(filepath)
+        elif os.name == 'posix':  # macOS/Linux
+            subprocess.Popen(['open', '-a', 'TextEdit', filepath])  # For macOS
+            # For Linux you might use: subprocess.Popen(['xdg-open', filepath])
+
+        say(f"I've successfully created your {letter_type} and saved it as {filename}. You can find it in your notes folder and edit it as needed.")
+        return f"Assistant: Letter saved as {filepath}"
+    except Exception as e:
+        say("Sorry, I couldn't save the letter file. Please check your notes directory permissions.")
+        return f"Assistant: Error saving letter: {e}"
+
+
 def process_command(query):
     print("Processing command")
+    global is_taking_notes, current_note_content
+
     if not query:
         return "Assistant: No command recognized."
 
     query_lower = query.lower()
 
-    # Play YouTube Video
-    if any(word in query_lower for word in [
-        "play video", "play a video", "play on youtube", "search video", "youtube video",
-        "turn on the video on youtube", "anky video ran on youtube", "play video on youtube",
-        "play song on youtube", "play music", "play movie on youtube", "play movie",
-        "stop video", "stop youtube", "skip video", "rewind video", "search on youtube"
-    ]):
+    if is_taking_notes:
+        if any(word in query_lower for word in ["save file", "save document", "save this"]):
+            return save_text_file()
+        elif any(word in query_lower for word in ["cancel", "don't save", "discard"]):
+            is_taking_notes = False
+            current_note_content = ""
+            try:
+                os.remove(current_file_path)
+            except:
+                pass
+            say("Document discarded.")
+            return "Assistant: Document discarded."
+        else:
+            success = add_to_note(query)
+            if success:
+                return f"Assistant: Added to document: {query}"
+            else:
+                return "Assistant: Error adding to document."
+
+    elif any(phrase in query_lower for phrase in ["write letter", "create letter", "compose letter"]):
+        return write_letter()
+
+    elif any(word in query_lower for word in ["i want to write text", "open text editor", "start dictation"]):
+        return start_text_editor()
+
+    elif any(word in query_lower for word in ["play video", "play on youtube", "search video"]):
         say("Which video would you like to play?")
         video_name = takeCommand()
         if video_name:
@@ -326,25 +447,16 @@ def process_command(query):
         else:
             return "Assistant: Video name not recognized."
 
-
-    elif any(word in query_lower for word in [
-        "pause video", "pause the video", "pause youtube", "pause playback", "pose the video"
-    ]):
+    elif any(word in query_lower for word in ["pause video", "pause the video"]):
         return pause_youtube_video()
 
-
-    elif any(word in query_lower for word in [
-        "resume video", "resume the video", "resume youtube", "continue video", "continue playback"
-    ]):
+    elif any(word in query_lower for word in ["resume video", "resume the video"]):
         return resume_youtube_video()
 
-
-    elif any(word in query_lower for word in
-             ["time", "current time", "what is the time", "tell me the time", "time now"]):
+    elif any(word in query_lower for word in ["time", "current time", "what is the time"]):
         return get_time()
 
-    elif any(word in query_lower for word in
-             ["weather", "temperature", "how is the weather", "what's the weather", "weather update"]):
+    elif any(word in query_lower for word in ["weather", "temperature", "how is the weather"]):
         say("Please tell me the city name.")
         city = takeCommand()
         if city:
@@ -352,10 +464,10 @@ def process_command(query):
         else:
             return "Assistant: City not recognized."
 
-    elif any(word in query_lower for word in ["news", "headlines", "latest news", "today's news", "news update"]):
+    elif any(word in query_lower for word in ["news", "headlines", "latest news"]):
         return get_news()
 
-    elif any(word in query_lower for word in ["stop", "exit", "goodbye", "close", "shut down", "terminate"]):
+    elif any(word in query_lower for word in ["stop", "exit", "goodbye"]):
         return stop_assistant()
 
     else:
@@ -363,91 +475,49 @@ def process_command(query):
         return groq(query, GROQ_API_KEY)
 
 
-KEYWORD_PATH = "/Volumes/ANANT/My Projects/Projects/Personal projects/PERSONAL DESKTOP ASSISTANT/Personal Assistant/backend/Worcestershire_en_mac_v3_0_0.ppn"  # Relative path
-
-def hotword_listener():
-    try:
-        porcupine = pvporcupine.create(access_key=ACCESS_KEY, keyword_paths=[KEYWORD_PATH])
-        recorder = PvRecorder(device_index=-1, frame_length=porcupine.frame_length)
-        recorder.start()
-        print("Listening for the wake word 'assistant'...")
-
-        while not stop_listener:
-            pcm = recorder.read()
-            if porcupine.process(pcm) >= 0:
-                say("How may I assist you?")
-                query = takeCommand()
-                if query:
-                    if "exit" in query.lower():
-                        stop_assistant()
-                    else:
-                        response = process_command(query)
-                        if response:
-                            print(response)
-    except Exception as e:
-        print(f"Error in hotword listener: {e}")
-    finally:
-        recorder.stop()
-        recorder.delete()
-        porcupine.delete()
-
 class VoiceAssistantApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Voice Assistant")
         self.root.attributes("-fullscreen", True)
 
-        # Load images from URLs
-        self.mic_photo = self.load_image("https://cdn-icons-png.flaticon.com/128/25/25682.png",
-                                         (50, 50))
-        self.home_photo = self.load_image("https://cdn-icons-png.flaticon.com/128/25/25694.png",
-                                          (50, 50))
-        self.chat_photo = self.load_image("https://cdn-icons-png.flaticon.com/128/6396/6396259.png",
-                                          (50, 50))
+        self.mic_photo = self.load_image("https://cdn-icons-png.flaticon.com/128/25/25682.png", (50, 50))
+        self.home_photo = self.load_image("https://cdn-icons-png.flaticon.com/128/25/25694.png", (50, 50))
+        self.chat_photo = self.load_image("https://cdn-icons-png.flaticon.com/128/6396/6396259.png", (50, 50))
         self.center_image = self.load_image("https://i.pinimg.com/736x/20/ff/d7/20ffd75ad4339fe691d3fb6fffd9cdec.jpg",
                                             (500, 500))
-
 
         self.top_left_frame = tk.Frame(root)
         self.top_left_frame.place(x=10, y=10)
 
-        # Chat Button
         self.chat_button = tk.Button(self.top_left_frame, image=self.chat_photo, command=self.show_chat_history,
                                      bg="lightyellow", fg="black")
         self.chat_button.grid(row=0, column=0, padx=5)
 
-        # Home Button
         self.home_button = tk.Button(self.top_left_frame, image=self.home_photo, command=self.go_home, bg="lightgreen",
                                      fg="black")
         self.home_button.grid(row=0, column=1, padx=5)
 
-        # Chat history
         self.chat_history = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=80, height=20, state='disabled')
         self.chat_history.pack(pady=20, padx=20, fill=tk.BOTH, expand=True)
 
-        # Center frame for the image button
         self.center_frame = tk.Frame(root)
         self.center_frame.pack(side=tk.TOP, pady=10)
 
-        # Image Button
         self.image_button = tk.Button(self.center_frame, image=self.center_image, command=self.go_home, bg="lightgreen",
                                       fg="black")
         self.image_button.pack()
 
-        # Bottom center frame for Mic button
         self.bottom_center_frame = tk.Frame(root)
         self.bottom_center_frame.pack(side=tk.BOTTOM, pady=20)
 
-        # Mic Button with Image
         self.mic_button = tk.Button(self.bottom_center_frame, image=self.mic_photo, command=self.start_listening,
                                     bg="lightblue", fg="black")
         self.mic_button.pack()
 
-        # Initialize chat history
         self.update_chat_history("Assistant: Hello! How can I assist you today?")
 
     def load_image(self, url, size):
-        """Load image from a URL and resize it."""
         try:
             response = requests.get(url)
             response.raise_for_status()
@@ -514,6 +584,9 @@ class VoiceAssistantApp:
 
 
 if __name__ == "__main__":
+    if not os.path.exists(NOTES_DIRECTORY):
+        os.makedirs(NOTES_DIRECTORY)
+
     root = tk.Tk()
     app = VoiceAssistantApp(root)
     root.mainloop()
